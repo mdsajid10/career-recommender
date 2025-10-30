@@ -1,25 +1,37 @@
-def recommend_career(skills):
-    career_map = {
-        "python": "Data Scientist / AI Engineer",
-        "machine learning": "Data Scientist",
-        "deep learning": "AI Engineer",
-        "excel": "Business Analyst",
-        "powerbi": "Business Analyst",
-        "sql": "Database Administrator",
-        "aws": "Cloud Engineer",
-        "docker": "DevOps Engineer",
+def recommend_career(skills, personality, interests):
+    base_careers = {
+        "python": "Data Scientist",
         "react": "Frontend Developer",
-        "javascript": "Full Stack Developer",
-        "spring": "Java Backend Developer",
-        "statistics": "Research Analyst",
-        "communication": "HR / Manager",
-        "leadership": "Team Lead / Project Manager"
+        "sql": "Database Engineer",
+        "excel": "Business Analyst",
+        "aws": "Cloud Engineer",
+        "management": "Project Manager"
     }
 
-    recommendations = set()
+    recommendations = {}
+
+    # Skill-based weighting
     for skill in skills:
-        skill_lower = skill.lower()
-        if skill_lower in career_map:
-            recommendations.add(career_map[skill_lower])
-    
-    return list(recommendations)
+        for key, job in base_careers.items():
+            if key.lower() in skill.lower():
+                recommendations[job] = recommendations.get(job, 0) + 0.6
+
+    # Personality influence
+    if personality.lower() in ["leader", "supportive"]:
+        recommendations["Project Manager"] = recommendations.get("Project Manager", 0) + 0.2
+    elif personality.lower() in ["analytical"]:
+        recommendations["Data Scientist"] = recommendations.get("Data Scientist", 0) + 0.2
+    elif personality.lower() in ["creative"]:
+        recommendations["Frontend Developer"] = recommendations.get("Frontend Developer", 0) + 0.2
+
+    # Interest influence
+    for interest in interests:
+        if interest.lower() in ["coding", "data"]:
+            recommendations["Data Scientist"] = recommendations.get("Data Scientist", 0) + 0.2
+        if interest.lower() == "design":
+            recommendations["Frontend Developer"] = recommendations.get("Frontend Developer", 0) + 0.2
+        if interest.lower() == "management":
+            recommendations["Project Manager"] = recommendations.get("Project Manager", 0) + 0.2
+
+    sorted_recommendations = sorted(recommendations.items(), key=lambda x: x[1], reverse=True)
+    return [career for career, score in sorted_recommendations]

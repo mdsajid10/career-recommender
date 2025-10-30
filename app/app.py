@@ -1,51 +1,99 @@
 import streamlit as st
-import pickle
-import os
-import sys
-import tempfile
+import pandas as pd
+import os, sys, pickle
 
-# ✅ Add project root to system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from utils.resume_parser import parse_resume
+from utils.career_recommender import recommend_career
 
-
-# Load model and vectorizer
 model_path = os.path.join(os.path.dirname(__file__), "..", "models", "career_model.pkl")
+vectorizer_path = os.path.join(os.path.dirname(__file__), "..", "models", "vectorizer.pkl")
 
-vectorizer_path = os.path.join(os.path.dirname(__file__), "..","models","vectorizer.pkl")
+st.set_page_config(page_title="AI Career Recommender", page_icon="🎓", layout="wide")
 
-with open(model_path, "rb") as f:
-    model = pickle.load(f)
+# Sidebar
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
+    st.markdown("### 👨‍💻 Developer")
+    st.markdown("**Md Sajid Salim**  \nMCA, Lovely Professional University (2024–26)  \n📍 Phugwala, Punjab, India")
+    st.divider()
+    st.markdown("### 📘 About Project")
+    st.write("This AI-powered system analyzes your resume to extract key skills, understands your personality and interests, and recommends the most suitable career paths using NLP and Machine Learning.")
+    st.markdown("---")
+    st.caption("Built with ❤️ using Python, Streamlit & Scikit-learn")
 
-with open(vectorizer_path, "rb") as f:
-    vectorizer = pickle.load(f)
+# Title
+st.markdown("<h1 style='text-align:center;'>🎓 AI Career Recommender System</h1>", unsafe_allow_html=True)
+st.write("Upload your resume and answer a few questions to receive AI-based career guidance tailored to your skills and interests!")
 
-# Streamlit UI
-st.set_page_config(page_title="AI Career Recommender", page_icon="🎯")
-st.title("AI Career Recommender")
-st.write("Upload your resume to get career insights and recommendations based on your profile!")
+uploaded_file = st.file_uploader("📂 Upload your resume (PDF)", type=["pdf"])
+skills = None
 
-uploaded_file = st.file_uploader("Upload your Resume (PDF)", type=["pdf"])
+col1, col2 = st.columns(2)
+with col1:
+    personality = st.selectbox("🧠 Select your personality type", ["Analytical", "Creative", "Leader", "Supportive"])
+with col2:
+    interests = st.multiselect("💡 Select your areas of interest", ["Coding", "Data", "Design", "Management", "Teaching", "Research"])
 
-if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        tmp_file.write(uploaded_file.read())
-        resume_path = tmp_file.name
+if uploaded_file is not None:
+    with open("temp_resume.pdf", "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    # Parse the resume
-    resume_data = parse_resume(resume_path)
-    
-    st.subheader("📄 Extracted Information")
-    st.write("**Skills:**", ", ".join(resume_data["skills"]))
-    st.write("**Education:**", ", ".join(resume_data["education"]))
-    st.write("**Experience:**", ", ".join(resume_data["experience"]))
-    st.write("**Projects:**", ", ".join(resume_data["projects"]))
+    skills = parse_resume("temp_resume.pdf")
 
-    # Prepare text for ML model
-    combined_text = " ".join(resume_data["skills"] + resume_data["education"])
-    X_vectorized = vectorizer.transform([combined_text])
-    prediction = model.predict(X_vectorized)[0]
+    st.markdown("## 🧩 Extracted Skills")
 
-    st.subheader("🎯 Career Recommendation")
-    st.success(f"Based on your resume, you could explore a career as a **{prediction}**.")
+    if skills:
+        if isinstance(skills, dict):
+            for category, items in skills.items():
+                st.markdown(f"### {category}")
+                if isinstance(items, list):
+                    st.markdown(
+                        "<div style='display:flex; flex-wrap:wrap; gap:8px;'>"
+                        + "".join(
+                            [f"<span style='background-color:#262730; color:#00ADB5; padding:8px 12px; border-radius:20px; font-size:14px;'>{item}</span>"
+                             for item in items]
+                        )
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.write(items)
+        elif isinstance(skills, list):
+            st.markdown(
+                "<div style='display:flex; flex-wrap:wrap; gap:8px;'>"
+                + "".join(
+                    [f"<span style='background-color:#262730; color:#00ADB5; padding:8px 12px; border-radius:20px; font-size:14px;'>{item}</span>"
+                     for item in skills]
+                )
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='display:flex; flex-wrap:wrap; gap:8px;'>"
+                + "".join(
+                    [f"<span style='background-color:#262730; color:#00ADB5; padding:8px 12px; border-radius:20px; font-size:14px;'>{item.strip()}</span>"
+                     for item in skills.split(",")]
+                )
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+    else:
+        st.warning("⚠️ No skills could be extracted. Try another resume or check parser logic.")
+
+    # ✅ Recommendation Section
+    if not skills:
+        skills = []
+
+    recommended = recommend_career(skills, personality, interests)
+    st.markdown("## 🏆 Recommended Careers")
+
+    if isinstance(recommended, list):
+        for i, career in enumerate(recommended, 1):
+            st.markdown(
+                f"<div style='background-color:#262730; color:white; padding:12px; border-radius:10px; margin-bottom:8px;'>{i}. {career}</div>",
+                unsafe_allow_html=True
+            )
+    else:
+        st.info("💡 " + str(recommended))
